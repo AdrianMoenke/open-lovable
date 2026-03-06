@@ -12,8 +12,14 @@ interface Idea {
   created_at: string;
 }
 
+interface IdeasStats {
+  total: number;
+  latestCreatedAt: string | null;
+}
+
 export default function IdeasBoard() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [stats, setStats] = useState<IdeasStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [title, setTitle] = useState("");
@@ -24,16 +30,25 @@ export default function IdeasBoard() {
     let cancelled = false;
     const load = async () => {
       try {
-        const res = await fetch("/api/ideas");
-        if (!res.ok) throw new Error("Failed to fetch ideas");
-        const data = (await res.json()) as { ideas: Idea[] };
+        const [ideasRes, statsRes] = await Promise.all([
+          fetch("/api/ideas?limit=24"),
+          fetch("/api/ideas/stats"),
+        ]);
+
+        if (!ideasRes.ok) throw new Error("Failed to fetch ideas");
+        if (!statsRes.ok) throw new Error("Failed to fetch idea stats");
+
+        const ideasData = (await ideasRes.json()) as { ideas: Idea[] };
+        const statsData = (await statsRes.json()) as IdeasStats;
+
         if (!cancelled) {
-          setIdeas(data.ideas);
+          setIdeas(ideasData.ideas);
+          setStats(statsData);
         }
       } catch (err) {
         if (!cancelled) {
           console.error(err);
-          setError("Could not load ideas yet. Try again in a bit.");
+          setError("Could not load ideas or stats yet. Try again in a bit.");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -96,6 +111,27 @@ export default function IdeasBoard() {
             we’ll keep a running wall of concepts from everyone trying the
             template.
           </p>
+
+          {stats && (
+            <div className="mt-4 inline-flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1 rounded-full border border-border-faint bg-background-base/70 px-2.5 py-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                {stats.total === 1
+                  ? "1 idea logged in Postgres"
+                  : `${stats.total} ideas logged in Postgres`}
+              </span>
+              {stats.latestCreatedAt && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-border-faint bg-background-base/70 px-2.5 py-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent/70" />
+                  Last one added{" "}
+                  {new Intl.DateTimeFormat(undefined, {
+                    month: "short",
+                    day: "numeric",
+                  }).format(new Date(stats.latestCreatedAt))}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         <form

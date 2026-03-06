@@ -1,28 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { dbQuery } from "@/lib/db";
+import { initIdeasTable } from "@/lib/ideas-schema";
 
 const ideaSchema = z.object({
   title: z.string().min(3).max(120),
   description: z.string().min(10).max(800),
 });
 
-async function ensureTable() {
-  await dbQuery(
-    `
-    CREATE TABLE IF NOT EXISTS ideas (
-      id SERIAL PRIMARY KEY,
-      title TEXT NOT NULL,
-      description TEXT NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-  `,
-  );
-}
-
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    await ensureTable();
+    await initIdeasTable();
+
+    const url = new URL(req.url);
+    const limitRaw = url.searchParams.get("limit");
+    const offsetRaw = url.searchParams.get("offset");
+
+    const limit = Math.min(
+      Math.max(Number(limitRaw ?? "24") || 24, 1),
+      100,
+    );
+    const offset = Math.max(Number(offsetRaw ?? "0") || 0, 0);
 
     const { rows } = await dbQuery<{
       id: number;
@@ -34,8 +32,9 @@ export async function GET() {
       SELECT id, title, description, created_at
       FROM ideas
       ORDER BY created_at DESC
-      LIMIT 24;
+      LIMIT $1 OFFSET $2;
     `,
+      [limit, offset],
     );
 
     return NextResponse.json({ ideas: rows });
@@ -60,7 +59,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await ensureTable();
+    await initIdeasTable();
 
     const { title, description } = parsed.data;
 
