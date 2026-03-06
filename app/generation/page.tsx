@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { appConfig } from '@/config/app.config';
 import HeroInput from '@/components/HeroInput';
 import SidebarInput from '@/components/app/generation/SidebarInput';
+import { DiscoveryPanel } from '@/components/app/generation/DiscoveryPanel';
 import HeaderBrandKit from '@/components/shared/header/BrandKit/BrandKit';
 import { HeaderProvider } from '@/components/shared/header/HeaderContext';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -65,6 +66,8 @@ function AISandboxPage() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState({ text: 'Not connected', active: false });
   const [responseArea, setResponseArea] = useState<string[]>([]);
+  const [discoverySessionId, setDiscoverySessionId] = useState<string | null>(null);
+  const [discoveryStatus, setDiscoveryStatus] = useState<any | null>(null);
   const [structureContent, setStructureContent] = useState('No sandbox created yet');
   const [promptInput, setPromptInput] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -2645,6 +2648,31 @@ Tip: I automatically detect and install npm packages from your code imports (lik
     
     // Set loading background to ensure proper visual feedback
     setShowLoadingBackground(true);
+
+    // Kick off a discovery session for the target URL in parallel with generation.
+    try {
+      const discoveryResponse = await fetch('/api/discovery/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: homeUrlInput.trim(),
+          scope: 'single_page',
+        }),
+      });
+
+      if (discoveryResponse.ok) {
+        const data = await discoveryResponse.json();
+        if (data.session?.id) {
+          setDiscoverySessionId(data.session.id);
+        }
+      } else {
+        console.warn('[discovery] Failed to start discovery session');
+      }
+    } catch (err) {
+      console.warn('[discovery] Error starting discovery session', err);
+    }
     
     // Clear messages and immediately show the initial message
     setChatMessages([]);
@@ -3450,6 +3478,8 @@ Focus on the key sections and content, making it clean and modern.`;
               </div>
             </div>
           )}
+
+          <DiscoveryPanel sessionId={discoverySessionId} />
 
           <div
             className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 scrollbar-hide"
