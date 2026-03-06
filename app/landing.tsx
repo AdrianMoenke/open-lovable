@@ -21,6 +21,7 @@ import { Connector } from "@/components/shared/layout/curvy-rect";
 import HeroFlame from "@/components/shared/effects/flame/hero-flame";
 import FirecrawlIcon from "@/components/FirecrawlIcon";
 import FirecrawlLogo from "@/components/FirecrawlLogo";
+import OnboardingWizard from "@/components/app/(home)/sections/onboarding/OnboardingWizard";
 
 export default function LandingPage() {
   return (
@@ -82,6 +83,13 @@ export default function LandingPage() {
                 <HeroInput />
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* Onboarding Wizard Section */}
+        <section className="cmw-container px-16 pb-140">
+          <div className="mt-32">
+            <OnboardingWizard />
           </div>
         </section>
       </div>
